@@ -39,6 +39,8 @@ jobs:
       - name: Build APK and AAB
         working-directory: ai-boyfriend-flutter
         run: |
+          sed -i 's/flutter_tts: .*/flutter_tts: 3.8.5/' pubspec.yaml
+          grep flutter_tts pubspec.yaml
           flutter pub get
           flutter build apk --release
           flutter build appbundle --release
