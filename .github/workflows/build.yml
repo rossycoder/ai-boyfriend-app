@@ -36,6 +36,40 @@ jobs:
           sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle || true
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle || true
           grep -q 'INTERNET' android/app/src/main/AndroidManifest.xml || sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <application|' android/app/src/main/AndroidManifest.xml
+      - name: Restore signing keystore
+        working-directory: ai-boyfriend-flutter
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > upload-keystore.p12
+          cat > android/key.properties <<EOF
+          storePassword=$STORE_PASSWORD
+          keyPassword=$STORE_PASSWORD
+          keyAlias=upload
+          storeFile=$GITHUB_WORKSPACE/ai-boyfriend-flutter/upload-keystore.p12
+          EOF
+          python3 - <<'PYEOF'
+          import pathlib
+          p = pathlib.Path('android/app/build.gradle')
+          s = p.read_text()
+          if 'kpFile' not in s:
+              s = s.replace('android {', """def kp = new Properties()
+          def kpFile = rootProject.file('key.properties')
+          if (kpFile.exists()) { kpFile.withReader('UTF-8') { r -> kp.load(r) } }
+          android {
+              signingConfigs {
+                  release {
+                      keyAlias kp['keyAlias']
+                      keyPassword kp['keyPassword']
+                      storeFile kp['storeFile'] ? file(kp['storeFile']) : null
+                      storePassword kp['storePassword']
+                  }
+              }""", 1)
+              s = s.replace('signingConfigs.debug', 'signingConfigs.release')
+              p.write_text(s)
+          print('signing injected:', 'signingConfigs' in p.read_text())
+          PYEOF
       - name: Build APK and AAB
         working-directory: ai-boyfriend-flutter
         run: |
@@ -53,8 +87,8 @@ jobs:
       - name: Publish Release with APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-v1.3
-          name: AI Partner APK v1.3
+          tag_name: apk-v1.4
+          name: AI Partner APK v1.4
           files: |
             ai-boyfriend-flutter/build/app/outputs/flutter-apk/app-release.apk
             ai-boyfriend-flutter/build/app/outputs/bundle/release/app-release.aab
