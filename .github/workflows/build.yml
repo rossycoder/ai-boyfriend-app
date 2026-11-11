@@ -70,6 +70,9 @@ jobs:
               p.write_text(s)
           print('signing injected:', 'signingConfigs' in p.read_text())
           PYEOF
+          sha256sum upload-keystore.p12
+          openssl pkcs12 -in upload-keystore.p12 -passin pass:"$STORE_PASSWORD" -nokeys -clcerts 2>/dev/null | grep -i subject || echo KEYSTORE_OPEN_FAILED
+          ls -l upload-keystore.p12
       - name: Build APK and AAB
         working-directory: ai-boyfriend-flutter
         run: |
