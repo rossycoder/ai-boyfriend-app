@@ -53,8 +53,8 @@ jobs:
       - name: Publish Release with APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-v1.2
-          name: AI Partner APK v1.2
+          tag_name: apk-v1.3
+          name: AI Partner APK v1.3
           files: |
             ai-boyfriend-flutter/build/app/outputs/flutter-apk/app-release.apk
             ai-boyfriend-flutter/build/app/outputs/bundle/release/app-release.aab
