@@ -36,6 +36,27 @@ jobs:
           sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle || true
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle || true
           grep -q 'INTERNET' android/app/src/main/AndroidManifest.xml || sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <application|' android/app/src/main/AndroidManifest.xml
+          python3 - <<'PYEOF'
+          import pathlib
+          p = pathlib.Path('android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          if 'RECEIVE_BOOT_COMPLETED' not in s:
+              s = s.replace('<application',
+                  '<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n    <application', 1)
+          receivers = '''        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"/>
+                  <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+                      <intent-filter>
+                          <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                          <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                          <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                      </intent-filter>
+                  </receiver>
+              </application>'''
+          if 'ScheduledNotificationReceiver' not in s:
+              s = s.replace('</application>', receivers, 1)
+          p.write_text(s)
+          print('notification receivers injected:', 'ScheduledNotificationReceiver' in p.read_text())
+          PYEOF
       - name: Restore signing keystore
         working-directory: ai-boyfriend-flutter
         env:
@@ -90,8 +111,8 @@ jobs:
       - name: Publish Release with APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-v1.5
-          name: AI Partner APK v1.5
+          tag_name: apk-v1.6
+          name: AI Partner APK v1.6
           files: |
             ai-boyfriend-flutter/build/app/outputs/flutter-apk/app-release.apk
             ai-boyfriend-flutter/build/app/outputs/bundle/release/app-release.aab
