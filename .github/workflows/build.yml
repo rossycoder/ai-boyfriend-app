@@ -57,6 +57,24 @@ jobs:
           p.write_text(s)
           print('notification receivers injected:', 'ScheduledNotificationReceiver' in p.read_text())
           PYEOF
+          cp proguard-rules.pro android/app/proguard-rules.pro
+          python3 - <<'PYEOF'
+          import pathlib
+          # v1.8 fix: Gson keep rules wali proguard-rules.pro ko release
+          # buildType me lazmi reference karo (Flutter plugin is file ko
+          # fallback me khud bhi leta hai, lekin explicit reference pakka
+          # hai). Is ke baghair R8 Gson ki generic Signature info strip kar
+          # deta tha aur ScheduledNotificationBootReceiver reboot/update ke
+          # baad "Missing type parameter" se crash hota tha (v1.6/v1.7 bug)
+          # — 08:00/22:00 wale daily alarms kho sakte the.
+          p = pathlib.Path('android/app/build.gradle')
+          s = p.read_text()
+          if 'proguard-rules.pro' not in s:
+              s = s.replace('release {', "release {\n            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'", 1)
+              p.write_text(s)
+          print('proguard rules copied:', pathlib.Path('android/app/proguard-rules.pro').exists())
+          print('proguard reference injected:', 'proguard-rules.pro' in p.read_text())
+          PYEOF
       - name: Restore signing keystore
         working-directory: ai-boyfriend-flutter
         env:
