@@ -33,8 +33,38 @@ jobs:
             cp -r /tmp/lib.bak lib
             cp -r /tmp/assets.bak assets
           fi
-          sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle || true
-          sed -i 's/targetSdkVersion .*/targetSdkVersion 36/' android/app/build.gradle || true
+          python3 - <<'PYEOF'
+          import pathlib, re
+          # SDK pins (v1.9 fix): purani sed lines Kotlin DSL template par
+          # kabhi match hi nahi hoti theen ('targetSdk = flutter...' me
+          # 'targetSdkVersion ' wala pattern nahi banta) — is liye har APK
+          # Flutter default (min 21 / target 34) ke sath banti rahi. Ab
+          # dono formats handle karo aur match na ho to step FAIL karo,
+          # khamoshi se aage mat barho.
+          p = None
+          for name in ('android/app/build.gradle', 'android/app/build.gradle.kts'):
+              q = pathlib.Path(name)
+              if q.exists():
+                  p = q
+                  break
+          assert p is not None, 'app build file not found'
+          s = p.read_text()
+          def sub(pattern, repl, s):
+              s2 = re.sub(pattern, repl, s)
+              assert s2 != s, 'pattern not found: ' + pattern
+              return s2
+          if re.search(r'^\s*minSdk\s*=', s, re.M):
+              s = sub(r'minSdk\s*=.*', 'minSdk = 24', s)
+              s = sub(r'targetSdk\s*=.*', 'targetSdk = 36', s)
+          else:
+              s = sub(r'minSdkVersion\s.*', 'minSdkVersion 24', s)
+              s = sub(r'targetSdkVersion\s.*', 'targetSdkVersion 36', s)
+          p.write_text(s)
+          print('SDK pins applied in', p)
+          for line in s.splitlines():
+              if 'Sdk' in line:
+                  print('  ', line.strip())
+          PYEOF
           grep -q 'INTERNET' android/app/src/main/AndroidManifest.xml || sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <application|' android/app/src/main/AndroidManifest.xml
           python3 - <<'PYEOF'
           import pathlib
